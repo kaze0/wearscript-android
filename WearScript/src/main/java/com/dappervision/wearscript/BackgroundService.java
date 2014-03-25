@@ -8,9 +8,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Configuration;
 import android.media.AudioRecord;
-import android.os.Binder;
-import android.os.IBinder;
-import android.os.PowerManager;
+import android.os.*;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.TextToSpeech.OnInitListener;
 import android.view.Menu;
@@ -73,6 +71,7 @@ public class BackgroundService extends Service implements AudioRecord.OnRecordPo
     private View activityView;
     private ActivityEvent.Mode activityMode;
     private String initScript;
+    private Handler mainHandler;
 
     static public String getDefaultUrl() {
         byte[] wsUrlArray = Utils.LoadData("", "qr.txt");
@@ -255,15 +254,21 @@ public class BackgroundService extends Service implements AudioRecord.OnRecordPo
     }
 
     public void reset() {
+        //FIXME: I suspect that we are butchering this lock
         synchronized (lock) {
             Log.d(TAG, "reset");
             // NOTE(brandyn): Put in a better spot
             if (webview != null) {
-                webview.stopLoading();
-                // Stops all javascript
-                webview.loadUrl("about:blank");
-                webview.onDestroy();
-                webview = null;
+                            mainHandler.post(new Runnable() {
+                @Override
+                public void run() {
+
+                    webview.stopLoading();
+                    // Stops all javascript
+                    webview.loadUrl("about:blank");
+                    webview.onDestroy();
+                    webview = null;
+                }});
             }
             sensorBuffer = new TreeMap<String, ArrayList<Value>>();
             sensorTypes = new TreeMap<String, Integer>();
@@ -361,6 +366,7 @@ public class BackgroundService extends Service implements AudioRecord.OnRecordPo
 
         glassID = ((WifiManager) getManager(WifiManager.class)).getMacAddress();
 
+        mainHandler = new Handler(Looper.getMainLooper());
         reset();
     }
 
